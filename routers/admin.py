@@ -19,7 +19,7 @@ def admin_required(current_user: User = Depends(get_current_user)):
     return current_user
 
 @router.get("/users", response_model=list[UserResponse])
-def get_all_users(db: Session = Depends(get_db), _: User = Depends(admin_required)):
+def get_all_users_as_admin(db: Session = Depends(get_db), _: User = Depends(admin_required)):
     return db.query(User).all()
 
 @router.post("/users", response_model=UserResponse)
@@ -65,20 +65,6 @@ def update_user_as_admin(
     db.commit()
     db.refresh(user)
     return user
-
-@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user_as_admin(
-    user_id: int,
-    db: Session = Depends(get_db),
-    _: User = Depends(admin_required)
-):
-    user = db.query(User).filter(User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
-
-    db.delete(user)
-    db.commit()
-    return None
 
 @router.get("/portfolios/{user_id}", response_model=list[PortfolioResponse])
 def get_user_portfolios_as_admin(
