@@ -1,15 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+import secrets
+
 from core.database import get_db
 from core.dependencies import get_current_user
 from schemas.user_schema import UserUpdate, UserResponse
 from models.user import User
 from models.portfolio import Portfolio
-from core.security import create_access_token, decode_access_token
+from core.security import (
+    create_access_token,
+    decode_access_token,
+    create_email_verify_token,
+)
 from helpers.email_sender import send_email_async
-from core.config import BASE_URL
-
+from core.config import FRONTEND_URL
 router = APIRouter(prefix="/users", tags=["Users"])
 
 @router.get("/me", response_model=UserResponse)
@@ -33,17 +38,26 @@ async def update_my_profile(
         current_user.last_name = user_update.last_name
         updated = True
     if user_update.username:
-        if db.query(User).filter(User.username == user_update.username, User.id != current_user.id).first():
+        if db.query(User).filter(
+            User.username == user_update.username,
+            User.id != current_user.id
+        ).first():
             raise HTTPException(status_code=400, detail="Bu kullanıcı adı zaten kullanılıyor.")
         current_user.username = user_update.username
         updated = True
     if user_update.email:
-        if db.query(User).filter(User.email == user_update.email, User.id != current_user.id).first():
+        if db.query(User).filter(
+            User.email == user_update.email,
+            User.id != current_user.id
+        ).first():
             raise HTTPException(status_code=400, detail="Bu e-posta zaten kullanılıyor.")
+
         if user_update.email != current_user.email:
             email_changed = True
             current_user.email = user_update.email
             current_user.is_verified = False
+            evt = secrets.token_hex(32)  # 64 hex karakter
+            current_user.email_verify_token = evt
             updated = True
 
     if not updated:
@@ -53,8 +67,8 @@ async def update_my_profile(
     db.refresh(current_user)
 
     if email_changed:
-        token = create_access_token(current_user)
-        verify_link = f"{BASE_URL}/auth/verify-email?token={token}"
+        token = create_email_verify_token(current_user, current_user.email_verify_token)
+        verify_link = f"{FRONTEND_URL}/verify-email?token={token}"
 
         subject = "PortfolioApp - Yeni E-posta Doğrulama"
         body = (
@@ -84,7 +98,8 @@ async def request_account_deletion(
     current_user: User = Depends(get_current_user)
 ):
     token = create_access_token(current_user)
-    delete_link = f"{BASE_URL}/users/confirm-delete?token={token}"
+
+    delete_link = f"{FRONTEND_URL}/confirm-delete?token={token}"
 
     subject = "PortfolioApp - Hesap Silme Onayı"
     body = (
@@ -113,7 +128,6 @@ async def confirm_account_deletion(token: str, db: Session = Depends(get_db)):
     first_name = user.first_name
 
     db.query(Portfolio).filter(Portfolio.user_id == user.id).delete()
-
     db.delete(user)
     db.commit()
 

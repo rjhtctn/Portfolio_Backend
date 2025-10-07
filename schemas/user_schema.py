@@ -47,3 +47,11 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str = Field(..., min_length=6, max_length=128)
+
+class AdminUserCreate(UserCreate):
+    is_admin: bool = False
+    is_verified: bool = True
+
+class AdminUserUpdate(UserUpdate):
+    is_admin: Optional[bool] = None
+    is_verified: Optional[bool] = None

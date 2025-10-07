@@ -2,12 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, 
 from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse
 from sqlalchemy import or_
+import secrets
+
 from core.database import get_db
-from core.security import hash_password, verify_password, create_access_token, decode_access_token
+from core.security import (
+    hash_password, verify_password,
+    create_access_token, decode_access_token,
+    create_email_verify_token,   # ✅ yeni
+)
 from schemas.user_schema import UserCreate, UserLogin, UserResponse
 from models.user import User
 from helpers.email_sender import send_email_async
-from core.config import BASE_URL
+from core.config import FRONTEND_URL
 from core.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -37,12 +43,16 @@ async def register_user(
         is_admin=False
     )
 
+    # ✅ ilk doğrulama için tek-kullanımlık nonce üret
+    evt = secrets.token_hex(32)  # 64 hex karakter
+    new_user.email_verify_token = evt
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    token = create_access_token(new_user)
-    verify_link = f"http://127.0.0.1:8000/auth/verify-email?token={token}"
+    token = create_email_verify_token(new_user, evt)
+    verify_link = f"{FRONTEND_URL}/verify-email?token={token}"
 
     subject = "PortfolioApp - E-posta Doğrulama"
     body = (
@@ -69,17 +79,23 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     if user.is_verified:
         return {"message": "E-posta zaten doğrulanmış."}
 
+    # ✅ tek-kullanımlık bağlantı kontrolü (nonce eşleşmeli)
+    token_evt = payload.get("evt")
+    if not token_evt or not user.email_verify_token or token_evt != user.email_verify_token:
+        raise HTTPException(status_code=400, detail="Bu doğrulama bağlantısı artık geçersiz.")
+
     user.is_verified = True
+    user.email_verify_token = None
     db.commit()
 
     return {"message": "E-posta başarıyla doğrulandı. Artık giriş yapabilirsiniz."}
 
 @router.post("/login")
-async def login_user(credentials: UserLogin,
-                     background_tasks: BackgroundTasks,
-                     db: Session = Depends(get_db)
-    ):
-
+async def login_user(
+    credentials: UserLogin,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     user = db.query(User).filter(
         or_(User.username == credentials.username_or_email, User.email == credentials.username_or_email)
     ).first()
@@ -91,8 +107,13 @@ async def login_user(credentials: UserLogin,
         raise HTTPException(status_code=401, detail="Geçersiz şifre.")
 
     if not user.is_verified:
-        token = create_access_token(user)
-        verify_link = f"{BASE_URL}/auth/verify-email?token={token}"
+        # ✅ yeniden doğrulama: nonce yenile → eskiler geçersiz
+        evt = secrets.token_hex(32)
+        user.email_verify_token = evt
+        db.commit()
+
+        token = create_email_verify_token(user, evt)
+        verify_link = f"{FRONTEND_URL}/verify-email?token={token}"
 
         subject = "PortfolioApp - E-posta Doğrulama (Yeniden Gönderim)"
         body = (
@@ -130,8 +151,9 @@ async def forgot_password(
     if not user:
         raise HTTPException(status_code=404, detail="Bu e-posta ile kayıtlı kullanıcı bulunamadı.")
 
+    # Şimdilik reset akışı eski gibi kalsın (istersen buna da nonce ekleriz)
     token = create_access_token(user)
-    reset_link = f"http://127.0.0.1:8000/auth/reset-password?token={token}"
+    reset_link = f"{FRONTEND_URL}/reset-password?token={token}"
 
     subject = "PortfolioApp - Şifre Sıfırlama"
     body = (
@@ -144,7 +166,6 @@ async def forgot_password(
 
     background_tasks.add_task(send_email_async, user.email, subject, body)
     return {"message": "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi."}
-
 
 @router.post("/reset-password")
 async def reset_password(

@@ -4,7 +4,7 @@ from core.database import get_db
 from core.dependencies import get_current_user
 from models.user import User
 from models.portfolio import Portfolio
-from schemas.user_schema import UserCreate, UserResponse, UserUpdate
+from schemas.user_schema import AdminUserCreate, UserResponse, AdminUserUpdate
 from schemas.portfolio_schema import PortfolioResponse
 from core.security import hash_password
 
@@ -24,7 +24,7 @@ def get_all_users_as_admin(db: Session = Depends(get_db), _: User = Depends(admi
 
 @router.post("/users", response_model=UserResponse)
 def create_user_as_admin(
-    user_data: UserCreate,
+    user_data: AdminUserCreate,
     db: Session = Depends(get_db),
     _: User = Depends(admin_required)
 ):
@@ -40,8 +40,8 @@ def create_user_as_admin(
         username=user_data.username,
         email=user_data.email,
         password=hash_password(user_data.password),
-        is_admin=False,
-        is_verified=True
+        is_admin=bool(user_data.is_admin),
+        is_verified=bool(user_data.is_verified)
     )
     db.add(new_user)
     db.commit()
@@ -51,7 +51,7 @@ def create_user_as_admin(
 @router.put("/users/{user_id}", response_model=UserResponse)
 def update_user_as_admin(
     user_id: int,
-    user_update: UserUpdate,
+    user_update: AdminUserUpdate,
     db: Session = Depends(get_db),
     _: User = Depends(admin_required)
 ):
@@ -92,4 +92,18 @@ def delete_user_as_admin(
     db.delete(user)
     db.commit()
 
+    return None
+
+@router.delete("/portfolios/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_portfolio_as_admin(
+    portfolio_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(admin_required)
+):
+    portfolio = db.query(Portfolio).filter(Portfolio.id == portfolio_id).first()
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio bulunamadı.")
+
+    db.delete(portfolio)
+    db.commit()
     return None

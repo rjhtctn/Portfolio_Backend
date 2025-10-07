@@ -9,6 +9,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+FRONTEND_URL = os.getenv("FRONTEND_URL")
+
 SMTP_SERVER = os.getenv("SMTP_SERVER")
 SMTP_PORT = int(os.getenv("SMTP_PORT"))
 SMTP_USER = os.getenv("SMTP_USER")

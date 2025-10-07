@@ -11,16 +11,32 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
+# Genel amaçlı token üretici
+def _create_token(payload: dict, minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> str:
+    now = datetime.utcnow()
+    data = payload.copy()
+    data["iat"] = now
+    data["exp"] = now + timedelta(minutes=minutes)
+    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+
+# ⬅️ Var olan access token fonksiyonun aynen dursun
 def create_access_token(user):
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "user_id": user.id,
         "email": user.email,
         "username": user.username,
-        "exp": expire,
-        "iat": datetime.utcnow()
     }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return _create_token(payload, ACCESS_TOKEN_EXPIRE_MINUTES)
+
+# ✅ Yeni: e-posta doğrulama için nonce (evt) içeren token
+def create_email_verify_token(user, evt: str, minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> str:
+    payload = {
+        "user_id": user.id,
+        "email": user.email,
+        "username": user.username,
+        "evt": evt,
+    }
+    return _create_token(payload, minutes)
 
 def decode_access_token(token: str, db=None):
     try:
