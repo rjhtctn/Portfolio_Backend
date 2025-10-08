@@ -1,7 +1,11 @@
-from datetime import datetime, timedelta
-from jose import jwt
+# core/security.py
+
+from datetime import timedelta
+from fastapi import HTTPException, status
+from jose import jwt, JWTError
 from passlib.context import CryptContext
 from core.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from core.database import get_istanbul_now
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
@@ -11,49 +15,37 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-# Genel amaçlı token üretici
-def _create_token(payload: dict, minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> str:
-    now = datetime.utcnow()
-    data = payload.copy()
-    data["iat"] = now
-    data["exp"] = now + timedelta(minutes=minutes)
-    return jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+def create_token(data: dict, token_type: str, expires_delta: timedelta = None) -> str:
+    to_encode = data.copy()
+    now = get_istanbul_now()
 
-# ⬅️ Var olan access token fonksiyonun aynen dursun
-def create_access_token(user):
-    payload = {
-        "user_id": user.id,
-        "email": user.email,
-        "username": user.username,
-    }
-    return _create_token(payload, ACCESS_TOKEN_EXPIRE_MINUTES)
+    if expires_delta is None:
+        if token_type == "access":
+            expires_delta = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        else:
+            expires_delta = timedelta(minutes=15)
 
-# ✅ Yeni: e-posta doğrulama için nonce (evt) içeren token
-def create_email_verify_token(user, evt: str, minutes: int = ACCESS_TOKEN_EXPIRE_MINUTES) -> str:
-    payload = {
-        "user_id": user.id,
-        "email": user.email,
-        "username": user.username,
-        "evt": evt,
-    }
-    return _create_token(payload, minutes)
+    to_encode.update({
+        "iat": now,
+        "exp": now + expires_delta,
+        "type": token_type
+    })
 
-def decode_access_token(token: str, db=None):
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def decode_token(token: str, expected_type: str = None):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token geçersiz veya süresi dolmuş.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if not db:
-            return payload
 
-        from models.user import User
-        user = db.query(User).filter(User.id == payload.get("user_id")).first()
-        if not user:
-            return None
-
-        if user.email != payload.get("email") or user.username != payload.get("username"):
-            return None
+        if expected_type and payload.get("type") != expected_type:
+            raise credentials_exception
 
         return payload
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.JWTError:
-        return None
+    except JWTError:
+        raise credentials_exception

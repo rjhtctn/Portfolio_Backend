@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
+# models/user.py
 
-from core.database import Base
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy.orm import relationship
+from core.database import Base, get_istanbul_now
 
 class User(Base):
     __tablename__ = "users"
@@ -18,7 +18,7 @@ class User(Base):
 
     email_verify_token = Column(String(64), nullable=True)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=get_istanbul_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=get_istanbul_now(), nullable=True)
 
     portfolios = relationship("Portfolio", back_populates="user", cascade="all, delete")

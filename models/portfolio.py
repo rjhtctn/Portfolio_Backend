@@ -1,7 +1,8 @@
+# models/portfolio.py
+
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from core.database import Base
+from core.database import Base, get_istanbul_now
 
 class Portfolio(Base):
     __tablename__ = "portfolios"
@@ -14,7 +15,7 @@ class Portfolio(Base):
 
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), default=get_istanbul_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=get_istanbul_now, nullable=True)
 
     user = relationship("User", back_populates="portfolios")

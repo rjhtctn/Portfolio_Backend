@@ -1,3 +1,5 @@
+# helpers/email_sender.py
+
 import aiosmtplib
 from email.message import EmailMessage
 from core.config import SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASS, SENDER_NAME
