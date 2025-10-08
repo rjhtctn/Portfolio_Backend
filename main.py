@@ -17,7 +17,7 @@ app = FastAPI(
         {"name": "Auth", "description": "Kayıt, giriş, doğrulama işlemleri"},
         {"name": "Admin", "description": "Yönetici işlemleri"},
         {"name": "Users", "description": "Kullanıcı profili yönetimi"},
-        {"name": "Portfolios", "description": "Portfolyo CRUD işlemleri"},
+        {"name": "Portfolios", "description": "Portfolyo CRUD işlemleri"}
     ]
 )
 
@@ -26,7 +26,7 @@ app.add_middleware(
     allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 app.include_router(auth.router)
