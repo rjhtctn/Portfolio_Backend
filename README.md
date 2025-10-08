@@ -2,9 +2,12 @@
 
 **PortfolioApp Backend**, kullanıcıların kendi portfolyolarını yönetebildiği, e-posta doğrulama ve şifre sıfırlama destekli, admin paneline sahip, **FastAPI tabanlı** modern bir REST API projesidir.
 Tamamen **modüler mimariyle** geliştirilmiş, genişletilebilir ve bakımı kolay bir backend altyapısı sunar.
-
 ---
+## 🌐 İlgili Frontend Projeleri
 
+- **Web (Vite + React):** https://github.com/rjhtctn/Portfolio_Frontend_Web  
+- **Android (Kotlin + XML):** https://github.com/rjhtctn/Portfolio_Frontend_Android
+---
 ## ✨ Özellikler
 
 ### 🔐 JWT Authentication
