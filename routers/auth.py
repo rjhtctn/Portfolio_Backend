@@ -19,18 +19,13 @@ from core.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-
 def get_user_by_username_or_email(db: Session, identifier: str) -> User | None:
-    """Kullanıcıyı kullanıcı adı veya e-postaya göre case-insensitive (büyük/küçük harf duyarsız) arar."""
-    # Bu, SQLAlchemy için en doğru ve performanslı sorgudur.
-    # IDE'nin yanlış "InstrumentedAttribute" uyarısını susturmak için # noqa ekliyoruz.
     return db.query(User).filter(
         or_(
             User.username.ilike(identifier),
             User.email.ilike(identifier)
         )  # noqa
     ).first()
-
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(
@@ -68,7 +63,6 @@ async def register_user(
 
     return new_user
 
-
 @router.get("/verify-email")
 def verify_email(token: str, db: Session = Depends(get_db)):
     payload = decode_token(token, expected_type="email_verify")
@@ -86,7 +80,6 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     user.email_verify_token = None
     db.commit()
     return {"message": "E-posta başarıyla doğrulandı. Artık giriş yapabilirsiniz."}
-
 
 @router.post("/login")
 async def login_user(credentials: UserLogin, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -118,7 +111,6 @@ async def login_user(credentials: UserLogin, background_tasks: BackgroundTasks, 
         "user": {"id": user.id, "username": user.username, "email": user.email, "is_admin": user.is_admin}
     }
 
-
 @router.post("/forgot-password")
 async def forgot_password(
         background_tasks: BackgroundTasks,
@@ -138,7 +130,6 @@ async def forgot_password(
     background_tasks.add_task(send_email_async, str(user.email), subject, body)
     return {"message": "Şifre sıfırlama bağlantısı e-posta adresinize gönderildi."}
 
-
 @router.post("/reset-password")
 async def reset_password(
         token: str = Query(..., description="Şifre sıfırlama token’ı"),
@@ -157,7 +148,6 @@ async def reset_password(
     body = f"Merhaba {user.first_name},\n\nŞifreniz başarıyla güncellendi."
     await send_email_async(str(user.email), subject, body)
     return {"message": "Şifreniz başarıyla güncellendi."}
-
 
 @router.post("/change-password")
 async def change_password(

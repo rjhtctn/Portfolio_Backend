@@ -15,11 +15,9 @@ from core.config import FRONTEND_URL
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-
 @router.get("/me", response_model=UserResponse)
 def get_my_profile(current_user: User = Depends(get_current_user)):
     return current_user
-
 
 @router.put("/me", response_model=UserResponse)
 async def update_my_profile(
@@ -84,7 +82,6 @@ async def update_my_profile(
 
     return current_user
 
-
 @router.post("/request-delete")
 async def request_account_deletion(
         background_tasks: BackgroundTasks,
@@ -98,7 +95,6 @@ async def request_account_deletion(
     body = f"Merhaba {current_user.first_name},\n\nHesabınızı silme işlemini onaylamak için linke tıklayın:\n{delete_link}"
     background_tasks.add_task(send_email_async, current_user.email, subject, body)
     return {"message": "Hesap silme onay maili gönderildi."}
-
 
 @router.get("/confirm-delete")
 async def confirm_account_deletion(token: str, db: Session = Depends(get_db)):
@@ -119,3 +115,13 @@ async def confirm_account_deletion(token: str, db: Session = Depends(get_db)):
     await send_email_async(str(email), subject, body)
 
     return {"message": "Hesabınız ve portfolyolarınız başarıyla silindi."}
+
+@router.get("/{username}", response_model=UserResponse)
+def get_user_by_username(
+        username: str,
+        db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.username.ilike(username)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
+    return user

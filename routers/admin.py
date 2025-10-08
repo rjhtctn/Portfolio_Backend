@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import or_  # Düzeltme: 'or_' import edildi
+from sqlalchemy import or_
 from core.database import get_db
 from core.dependencies import get_current_user
 from models.user import User
@@ -13,7 +13,6 @@ from core.security import hash_password
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-
 def admin_required(current_user: User = Depends(get_current_user)):
     if not current_user.is_admin:
         raise HTTPException(
@@ -22,11 +21,9 @@ def admin_required(current_user: User = Depends(get_current_user)):
         )
     return current_user
 
-
 @router.get("/users", response_model=list[UserResponse])
 def get_all_users_as_admin(db: Session = Depends(get_db), _: User = Depends(admin_required)):
     return db.query(User).all()
-
 
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user_as_admin(
@@ -34,7 +31,6 @@ def create_user_as_admin(
         db: Session = Depends(get_db),
         _: User = Depends(admin_required)
 ):
-    # Düzeltme: Pydantic'in EmailStr tipini standart str'ye çevirerek sorgulama yapıyoruz.
     existing_user = db.query(User).filter(
         or_(User.username == user_data.username, User.email == str(user_data.email))
     ).first()
@@ -45,7 +41,7 @@ def create_user_as_admin(
         first_name=user_data.first_name,
         last_name=user_data.last_name,
         username=user_data.username,
-        email=str(user_data.email),  # Düzeltme: DB'ye kaydederken standart str'ye çeviriyoruz.
+        email=str(user_data.email),
         password=hash_password(user_data.password),
         is_admin=bool(user_data.is_admin),
         is_verified=bool(user_data.is_verified)
@@ -54,7 +50,6 @@ def create_user_as_admin(
     db.commit()
     db.refresh(new_user)
     return new_user
-
 
 @router.put("/users/{user_id}", response_model=UserResponse)
 def update_user_as_admin(
@@ -69,7 +64,6 @@ def update_user_as_admin(
 
     update_data = user_update.model_dump(exclude_unset=True)
 
-    # Düzeltme: Eğer e-posta güncelleniyorsa, onu da str'ye çevirelim.
     if 'email' in update_data:
         update_data['email'] = str(update_data['email'])
 
@@ -79,7 +73,6 @@ def update_user_as_admin(
     db.commit()
     db.refresh(user)
     return user
-
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user_as_admin(
@@ -96,7 +89,6 @@ def delete_user_as_admin(
     db.commit()
     return None
 
-
 @router.get("/portfolios/{user_id}", response_model=list[PortfolioResponse])
 def get_user_portfolios_as_admin(
         user_id: int,
@@ -105,7 +97,6 @@ def get_user_portfolios_as_admin(
 ):
     portfolios = db.query(Portfolio).filter(Portfolio.user_id == user_id).all()
     return portfolios
-
 
 @router.put("/portfolios/{portfolio_id}", response_model=PortfolioResponse)
 def update_portfolio_as_admin(
@@ -125,7 +116,6 @@ def update_portfolio_as_admin(
     db.commit()
     db.refresh(portfolio)
     return portfolio
-
 
 @router.delete("/portfolios/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_portfolio_as_admin(

@@ -89,3 +89,16 @@ def delete_portfolio(
     db.delete(portfolio)
     db.commit()
     return None
+
+@router.get("/user/{user_id:int}", response_model=list[PortfolioDetailResponse])
+def list_user_portfolios_by_id(
+        user_id: int,
+        db: Session = Depends(get_db),
+):
+    portfolios = (
+        db.query(Portfolio)
+        .options(joinedload(Portfolio.user))
+        .filter(Portfolio.user_id == user_id)
+        .all()
+    )
+    return portfolios
